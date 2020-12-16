@@ -46,8 +46,8 @@ export class TimeGraphChart extends TimeGraphChartLayer {
     protected providedResolution: number;
 
     protected fetching: boolean;
-
     protected isNavigating: boolean;
+    protected isEventClicked: boolean;
 
     constructor(id: string,
         protected providers: TimeGraphChartProviders,
@@ -56,6 +56,7 @@ export class TimeGraphChart extends TimeGraphChartLayer {
         this.providedRange = { start: 0, end: 0 };
         this.providedResolution = 1;
         this.isNavigating = false;
+        this.isEventClicked = false;
     }
 
     protected afterAddToContainer() {
@@ -202,10 +203,14 @@ export class TimeGraphChart extends TimeGraphChartLayer {
                     if (this.isNavigating) {
                         this.selectStateInNavigation();
                     }
+                    if (this.isEventClicked) {
+                        this.selectStateOnEventClicked();
+                    }
                 }
             } finally {
                 this.fetching = false;
                 this.isNavigating = false;
+                this.isEventClicked = false;
             }
         }
     }
@@ -448,13 +453,43 @@ export class TimeGraphChart extends TimeGraphChartLayer {
         this.isNavigating = flag;
     }
 
+    setEventClickedFlag(flag: boolean) {
+        this.isEventClicked = flag;
+    }
+
+    private selectStateOnEventClicked() {
+        const selectedRow = this.rows.find(row => {
+            if (row && this.unitController.selectionRange) {
+                const cursorPosition = this.unitController.selectionRange.end;
+                const rowElement = row.states.find((rowElementModel: TimelineChart.TimeGraphState) => rowElementModel.range.start === cursorPosition
+                    || rowElementModel.range.end === cursorPosition);
+                if (rowElement) {
+                    return true;
+                }
+            }
+        });
+
+        if (selectedRow) {
+            const actualRow = this.rowComponents.get(selectedRow);
+            const chartY = 0 - this.layer.position.y;
+            const rowVerticalOffset = actualRow ? actualRow.position.y : 0;
+            const rowHeight = actualRow ? actualRow.height : 0;
+
+            if (rowVerticalOffset < chartY) {
+                this.rowController.verticalOffset = rowVerticalOffset;
+            } else if (rowVerticalOffset > chartY + this.layer.height) {
+                this.rowController.verticalOffset += rowVerticalOffset - (chartY + this.layer.height) + rowHeight;
+            }
+        }
+    }
+
     protected selectStateInNavigation() {
         const row = this.rowController.selectedRow;
         if (row && this.unitController.selectionRange) {
             const cursorPosition = this.unitController.selectionRange.end;
-            const rowElement = row.states.find((rowElementModel: TimelineChart.TimeGraphState) => rowElementModel.range.start === cursorPosition || rowElementModel.range.end === cursorPosition);
+            const rowElement = row.states.find((rowElementModel: TimelineChart.TimeGraphState) => rowElementModel.range.start === cursorPosition
+                || rowElementModel.range.end === cursorPosition);
             this.selectRowElement(rowElement);
         }
-        this.setNavigationFlag(false);
     }
 }
