@@ -1,9 +1,8 @@
-import { TimeGraphUnitController } from "../time-graph-unit-controller";
-import { TimeGraphComponent, TimeGraphStyledRect, TimeGraphInteractionHandler } from "../components/time-graph-component";
-import { TimeGraphStateController } from "../time-graph-state-controller";
+import { TimeGraphStyledRect } from "../components/time-graph-component";
 import { TimeGraphRectangle } from "../components/time-graph-rectangle";
 import { TimeGraphLayer } from "./time-graph-layer";
 import { TimelineChart } from "../time-graph-model";
+import { TimeGraphNavigatorHandle } from "../components/time-graph-navigator-handler";
 
 export class TimeGraphNavigator extends TimeGraphLayer {
 
@@ -14,10 +13,15 @@ export class TimeGraphNavigator extends TimeGraphLayer {
     afterAddToContainer() {
         this._updateHandler = (): void => this.update();
         this.unitController.onViewRangeChanged(this._updateHandler);
-        this.navigatorHandle = new TimeGraphNavigatorHandle(this.unitController, this.stateController);
+        this.navigatorHandle = new TimeGraphNavigatorHandle(this.unitController, this.stateController, {height: 20, width: 20, position: {x: 0, y: 0}});
         this.addChild(this.navigatorHandle);
         this.unitController.onSelectionRangeChange(this._updateHandler);
+        this.onCanvasEvent('mousedown', this.mouseDownHandler);
         this.update();
+    }
+
+    private mouseDownHandler = (e: MouseEvent) => {
+        console.log("Orey Konda na kodaka");
     }
 
     update() {
@@ -54,53 +58,5 @@ export class TimeGraphNavigator extends TimeGraphLayer {
             this.unitController.removeSelectionRangeChangedHandler(this._updateHandler);
         }
         super.destroy();
-    }
-}
-
-export class TimeGraphNavigatorHandle extends TimeGraphComponent<null> {
-
-    protected mouseIsDown: boolean;
-    protected mouseStartX: number;
-    protected oldViewStart: number;
-
-    constructor(protected unitController: TimeGraphUnitController, protected stateController: TimeGraphStateController) {
-        super('navigator_handle');
-        this.addEvent('mousedown', event => {
-            this.mouseStartX = event.data.global.x;
-            this.oldViewStart = this.unitController.viewRange.start;
-            this.mouseIsDown = true;
-        }, this._displayObject);
-        this.addEvent('mousemove', event => {
-            if (this.mouseIsDown) {
-                const delta = event.data.global.x - this.mouseStartX;
-                var start = Math.max(this.oldViewStart + (delta / this.stateController.absoluteResolution), 0);
-                start = Math.min(start, this.unitController.absoluteRange - this.unitController.viewRangeLength);
-                const end = Math.min(start + this.unitController.viewRangeLength, this.unitController.absoluteRange)
-                this.unitController.viewRange = {
-                    start,
-                    end
-                }
-            }
-        }, this._displayObject);
-        const moveEnd: TimeGraphInteractionHandler = event => {
-            this.mouseIsDown = false;
-        }
-        this.addEvent('mouseup', moveEnd, this._displayObject);
-        this.addEvent('mouseupoutside', moveEnd, this._displayObject);
-    }
-
-    render(): void {
-        const MIN_NAVIGATOR_WIDTH = 20;
-        const xPos = this.unitController.viewRange.start * this.stateController.absoluteResolution;
-        const effectiveAbsoluteRange = this.unitController.absoluteRange * this.stateController.absoluteResolution;
-        // Avoid the navigator rendered outside of the range at high zoom levels when its width is capped to MIN_NAVIGATOR_WIDTH
-        const position = { x: Math.min(effectiveAbsoluteRange - MIN_NAVIGATOR_WIDTH, xPos), y: 0 };
-        const width = Math.max(MIN_NAVIGATOR_WIDTH, this.unitController.viewRangeLength * this.stateController.absoluteResolution);
-        this.rect({
-            height: 20,
-            position,
-            width,
-            color: 0x777769
-        })
     }
 }
